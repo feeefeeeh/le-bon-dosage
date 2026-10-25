@@ -285,7 +285,8 @@ const ingText = i => [i.q != null ? fmtQty(i.q, i.u) : "", i.u, i.n].filter(Bool
 const mins = m => { m = +m || 0; return m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? String(m % 60).padStart(2, "0") : ""}` : `${m} min`; };
 const total = r => (+r.prep || 0) + (+r.cuisson || 0) + (+r.repos || 0);
 // « de beurre », « d'huile » : le nom d'ingrédient sous la quantité, comme sur une fiche cuisine
-const deName = i => i.q == null ? i.n : (/^[aeiouyhéèêœ]/i.test(i.n) ? "d'" : "de ") + i.n;
+// (« 3 œufs » sans « de » ; pas d'élision devant y ni h aspiré : « de yaourt », « de haricots »)
+const deName = i => i.q == null || !i.u ? i.n : (/^(h(?!aricot)|[aeiouéèêœ])/i.test(i.n) ? "d'" : "de ") + i.n;
 
 // self-check
 console.assert(JSON.stringify(parseLine("250 g de farine")) === '{"q":250,"u":"g","n":"farine"}');
@@ -296,7 +297,8 @@ console.assert(JSON.stringify(parseLine("1,5 kg de bœuf")) === '{"q":1.5,"u":"k
 console.assert(fmtQty(1.5, "") === "1½" && fmtQty(0.5, "") === "½" && fmtQty(333, "g") === "335");
 console.assert(scaled(100, "cl").join() === "1,l" && scaled(1500, "g").join() === "1.5,kg" && scaled(0.6, "kg").join() === "600,g");
 console.assert(fold("Crème Brûlée") === "creme brulee" && fold("Bœuf") === "boeuf");
-console.assert(deName({ q: 2, n: "huile" }) === "d'huile" && deName({ q: 2, n: "farine" }) === "de farine");
+console.assert(deName({ q: 2, u: "cl", n: "huile" }) === "d'huile" && deName({ q: 2, u: "g", n: "farine" }) === "de farine");
+console.assert(deName({ q: 3, u: "", n: "œufs" }) === "œufs" && deName({ q: 1, u: "pot", n: "yaourt" }) === "de yaourt" && deName({ q: 500, u: "g", n: "haricots rouges" }) === "de haricots rouges");
 
 // stockage sur le téléphone (localStorage peut être bloqué : navigation privée, etc.)
 const store = {
