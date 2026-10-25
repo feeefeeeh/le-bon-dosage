@@ -74,7 +74,9 @@ p, li { text-wrap: pretty; }
 /* fiches : rangées sur mobile, grille sur grand écran */
 .grid { display: grid; gap: 10px; }
 .card { position: relative; display: grid; grid-template-columns: 76px minmax(0, 1fr) 44px; align-items: center; gap: 12px; padding: 8px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); }
-.thumb { width: 76px; height: 76px; border-radius: 10px; display: grid; place-items: center; font: 800 1.9rem/1 var(--display); color: var(--surface); }
+.thumb { width: 76px; height: 76px; border-radius: 10px; overflow: hidden; display: grid; place-items: center; font: 800 1.9rem/1 var(--display); color: var(--surface); }
+.thumb img, .hero img, #f-photo-prev { width: 100%; height: 100%; object-fit: cover; display: block; outline: 1px solid rgb(0 0 0 / .1); outline-offset: -1px; }
+@media (prefers-color-scheme: dark) { .thumb img, .hero img, #f-photo-prev { outline-color: rgb(255 255 255 / .1); } }
 .card .open { all: unset; cursor: pointer; display: grid; gap: 2px; min-width: 0; }
 .card .open::after { content: ""; position: absolute; inset: 0 52px 0 0; border-radius: 18px; }
 .card .open:focus-visible { outline: none; }
@@ -88,6 +90,11 @@ p, li { text-wrap: pretty; }
 .empty { padding: 40px 20px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 18px; }
 
 /* fiche recette */
+.hero { margin: -16px -16px 18px; }
+.hero img { aspect-ratio: 4 / 3; max-height: 46vh; height: auto; }
+.hero figcaption { font-size: .72rem; color: var(--muted); padding: 4px 16px 0; text-align: right; }
+.hero a { color: inherit; }
+@media (min-width: 720px) { .hero { margin: 0 0 18px; } .hero img { border-radius: 18px; } .hero figcaption { padding-inline: 0; } }
 .r-cat { display: inline-block; margin-bottom: 6px; }
 .r-head h1 { font-size: clamp(1.7rem, 7vw, 2.8rem); line-height: 1.08; }
 .facts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0; }
@@ -123,6 +130,11 @@ input, select, textarea { font: inherit; font-size: 16px; padding: 10px 12px; mi
 textarea { min-height: 150px; resize: vertical; }
 .err { color: var(--accent); font-weight: 600; min-height: 1.4em; margin: 0; }
 .note { color: var(--muted); font-size: .88rem; margin: 0; }
+.photo-field { display: grid; gap: 8px; font-weight: 600; font-size: .92rem; }
+#f-photo-prev { aspect-ratio: 4 / 3; height: auto; max-width: 320px; border-radius: 14px; }
+.photo-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); cursor: pointer; font-weight: 600; }
+.btn:focus-within { outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: 2px; }
 
 /* barre d'onglets */
 nav.tabs { position: fixed; inset: auto 0 0; z-index: 6; background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid var(--line);
@@ -174,6 +186,13 @@ nav.tabs button[aria-current="page"] svg { fill: color-mix(in srgb, currentColor
       <label class="f">Ingrédients <small>Un par ligne, quantité puis unité : « 250 g de farine », « 3 œufs », « 1 c. à soupe d'huile », « sel »</small><textarea id="f-ing"></textarea></label>
       <label class="f">Étapes <small>Une étape par ligne, dans l'ordre</small><textarea id="f-steps"></textarea></label>
       <label class="f">Astuce <small>(facultatif)</small><textarea id="f-tip" style="min-height:80px"></textarea></label>
+      <div class="photo-field">Photo <small class="note">(facultatif)</small>
+        <img id="f-photo-prev" alt="Aperçu de la photo" hidden>
+        <div class="photo-btns">
+          <label class="btn"><span id="f-photo-label">Choisir une photo</span><input id="f-photo" type="file" accept="image/*" style="position:absolute;opacity:0;width:1px;height:1px"></label>
+          <button type="button" id="f-photo-del" class="danger" hidden>Retirer la photo</button>
+        </div>
+      </div>
       <p class="note">Vos recettes sont enregistrées sur ce téléphone uniquement.</p>
       <p class="err" id="f-err" role="alert"></p>
       <button class="primary" type="submit">Enregistrer la recette</button>
@@ -295,7 +314,7 @@ function renderList() {
     (!q || fold(r.titre).includes(q) || r.ingredients.some(i => fold(i.n).includes(q))));
   $("count").textContent = items.length ? `${items.length} recette${items.length > 1 ? "s" : ""}${onlyFavs ? " en favori" + (items.length > 1 ? "s" : "") : ""}` : "";
   $("grid").innerHTML = items.map(r => `<article class="card">
-    <div class="thumb" style="background:${CAT_COLOR[r.categorie] || CAT_COLOR.Autre}" aria-hidden="true">${esc((r.titre || "?").trim()[0].toUpperCase())}</div>
+    <div class="thumb" style="background:${CAT_COLOR[r.categorie] || CAT_COLOR.Autre}" aria-hidden="true">${r.photo ? `<img src="${esc(r.photo)}" alt="" loading="lazy" decoding="async">` : esc((r.titre || "?").trim()[0].toUpperCase())}</div>
     <button class="open" data-id="${esc(r.id)}">
       <span><span class="cat" style="color:${CAT_COLOR[r.categorie] || CAT_COLOR.Autre}">${esc(r.categorie)}</span>${r.base ? "" : ` · <span class="mine">Ma recette</span>`}</span>
       <h2>${esc(r.titre)}</h2>
@@ -314,6 +333,8 @@ function renderDetail() {
   if (!r) { currentId = null; setView(tab); renderList(); return; }
   const base = +r.personnes || 1, k = persons / base, color = CAT_COLOR[r.categorie] || CAT_COLOR.Autre;
   $("detail").innerHTML = `
+    ${r.photo ? `<figure class="hero"><img src="${esc(r.photo)}" alt="${esc(r.titre)}">${r.credit
+      ? `<figcaption>Photo : <a href="${esc(r.creditUrl)}" target="_blank" rel="noopener">${esc(r.credit)}</a></figcaption>` : ""}</figure>` : ""}
     <div class="r-head"><span class="cat r-cat" style="color:${color}">${esc(r.categorie)}</span><h1>${esc(r.titre)}</h1></div>
     <div class="facts"><span>${esc(r.difficulte)}</span><span>${esc(r.cout)}</span><span>Pour ${base} pers.</span></div>
     <div class="times">
@@ -351,9 +372,33 @@ function openEdit(r) {
   $("f-prep").value = r?.prep ?? 15; $("f-cuis").value = r?.cuisson ?? 0; $("f-repos").value = r?.repos ?? 0;
   $("f-ing").value = (r?.ingredients || []).map(ingText).join("\n");
   $("f-steps").value = (r?.etapes || []).join("\n"); $("f-tip").value = r?.astuce || ""; $("f-err").textContent = "";
+  setFormPhoto(r?.photo || "");
   if (!r) { tab = "new"; currentId = null; }
   setView("edit");
 }
+
+// photo des recettes perso : réduite à 800 px en JPEG puis stockée en data URL avec la recette
+// shortcut: localStorage (~5 Mo) tient une quarantaine de photos ; passer à IndexedDB au-delà
+let formPhoto = "";
+function setFormPhoto(src) {
+  formPhoto = src;
+  $("f-photo-prev").hidden = !src; if (src) $("f-photo-prev").src = src; else $("f-photo-prev").removeAttribute("src");
+  $("f-photo-del").hidden = !src; $("f-photo-label").textContent = src ? "Changer la photo" : "Choisir une photo";
+}
+$("f-photo").addEventListener("change", e => {
+  const file = e.target.files[0]; e.target.value = "";
+  if (!file) return;
+  const img = new Image(), url = URL.createObjectURL(file);
+  img.onload = () => {
+    const k = Math.min(1, 800 / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = Object.assign(document.createElement("canvas"), { width: Math.round(img.naturalWidth * k), height: Math.round(img.naturalHeight * k) });
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url); setFormPhoto(c.toDataURL("image/jpeg", 0.72)); $("f-err").textContent = "";
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); $("f-err").textContent = "Cette image n'a pas pu être lue. Essayez une photo JPEG ou PNG."; };
+  img.src = url;
+});
+$("f-photo-del").addEventListener("click", () => setFormPhoto(""));
 
 function toggleFav(id) {
   favs.has(id) ? favs.delete(id) : favs.add(id);
@@ -372,13 +417,14 @@ $("form").addEventListener("submit", e => {
     titre: $("f-titre").value.trim(), categorie: $("f-cat").value, personnes: Math.max(1, Math.round(+$("f-pers").value || 1)),
     difficulte: $("f-diff").value, cout: $("f-cout").value,
     prep: Math.max(0, +$("f-prep").value || 0), cuisson: Math.max(0, +$("f-cuis").value || 0), repos: Math.max(0, +$("f-repos").value || 0),
-    ingredients: lines("f-ing"), etapes: lines("f-steps"), astuce: $("f-tip").value.trim()
+    ingredients: lines("f-ing"), etapes: lines("f-steps"), astuce: $("f-tip").value.trim(),
+    ...(formPhoto && { photo: formPhoto })
   };
   const err = !data.titre ? "Donnez un titre à la recette." : !data.ingredients.length ? "Ajoutez au moins un ingrédient."
     : !data.etapes.length ? "Ajoutez au moins une étape de préparation." : "";
   if (err) { $("f-err").textContent = err; return; }
   const next = perso.filter(r => r.id !== data.id).concat(data);
-  if (!store.set("bd-recettes", next)) { $("f-err").textContent = "Impossible d'enregistrer sur ce téléphone (navigation privée ou stockage plein)."; return; }
+  if (!store.set("bd-recettes", next)) { $("f-err").textContent = "Impossible d'enregistrer sur ce téléphone : stockage plein ou navigation privée. Retirez la photo ou supprimez une ancienne recette."; return; }
   perso = next; sync();
   if (tab === "new") tab = "list";
   openRecipe(data.id);

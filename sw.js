@@ -1,10 +1,15 @@
 // Hors connexion : sert le cache tout de suite, puis le met à jour en arrière-plan.
 // Changer VERSION à chaque publication force le téléchargement des nouveaux fichiers.
-const VERSION = "bd-v1";
+const VERSION = "bd-v2";
 const FILES = ["./", "index.html", "recettes.json", "manifest.webmanifest", "icon.svg", "icon-180.png", "icon-192.png", "icon-512.png"];
 
+// les photos sont lues dans recettes.json pour être disponibles hors connexion dès l'installation
 self.addEventListener("install", e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then(async c => {
+    await c.addAll(FILES);
+    const recs = await (await c.match("recettes.json")).json();
+    await c.addAll(recs.map(r => r.photo).filter(Boolean));
+  }).then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", e => {
